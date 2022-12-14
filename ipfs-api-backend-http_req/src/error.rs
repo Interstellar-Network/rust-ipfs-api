@@ -6,25 +6,22 @@
 // copied, modified, or distributed except according to those terms.
 //
 
-use thiserror::Error;
+use snafu::prelude::*;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Snafu)]
 pub enum Error {
-    #[error("api returned error `{0}`")]
-    Api(ipfs_api_prelude::ApiError),
+    #[snafu(display("api returned error : {}", error))]
+    Api { error: ipfs_api_prelude::ApiError },
 
-    #[error("http_req client error `{0}`")]
-    Client(#[from] hyper::Error),
+    #[snafu(display("http_req error `{}`", error))]
+    Http { error: http_req::error::Error },
 
-    #[error("http error `{0}`")]
-    Http(#[from] http::Error),
-
-    #[error("ipfs client error `{0}`")]
-    IpfsClientError(#[from] ipfs_api_prelude::Error),
+    #[snafu(display("ipfs client error `{0}`", error))]
+    IpfsClientError { error: ipfs_api_prelude::Error },
 }
 
 impl From<ipfs_api_prelude::ApiError> for Error {
     fn from(err: ipfs_api_prelude::ApiError) -> Self {
-        Error::Api(err)
+        Error::Api { error: err }
     }
 }

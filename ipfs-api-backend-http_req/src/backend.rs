@@ -10,12 +10,12 @@ use crate::error::Error;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
-// use http::{
-//     header::{HeaderName, HeaderValue},
-//     uri::Scheme,
-//     StatusCode, Uri,
-// };
-use http_req::{request::RequestBuilder, response::StatusCode, tls, uri::Uri};
+use http::{
+    header::{HeaderName, HeaderValue},
+    uri::Scheme,
+    StatusCode, Uri as HttpUri,
+};
+use http_req::{request::RequestBuilder, response::StatusCode, tls, uri::Uri as HttpReqUri};
 use ipfs_api_prelude::{ApiRequest, Backend, BoxStream, TryFromUri};
 use multipart::client::multipart;
 
@@ -93,7 +93,9 @@ impl<'a> Backend for HttpReqBackend<'a> {
     where
         Req: ApiRequest,
     {
-        let url = req.absolute_url(&self.base)?;
+        // TODO(interstellar) uri!
+        // let url: Uri = req.absolute_url(&self.base.to_string())?;
+        let url = Uri::try_from("TODO").unwrap();
 
         // TODO(interstellar) cleanup
         // let builder = http::Request::builder();
@@ -110,7 +112,7 @@ impl<'a> Backend for HttpReqBackend<'a> {
         Ok(req)
     }
 
-    fn get_header(res: &Self::HttpResponse, key: String) -> Option<&String> {
+    fn get_header(res: &Self::HttpResponse, key: &String) -> Option<&String> {
         res.headers().get(key)
     }
 
@@ -146,8 +148,11 @@ impl<'a> Backend for HttpReqBackend<'a> {
     where
         F: 'static + Send + Fn(Self::HttpResponse) -> BoxStream<Res, Self::Error>,
     {
-        let stream = self
-            .request(req)
+        //Container for response's body
+        let mut writer = Vec::new();
+
+        let stream = req
+            .send(&mut writer)
             .err_into()
             .map_ok(move |res| {
                 match res.status() {

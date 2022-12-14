@@ -24,4 +24,5 @@ async-trait               = "0.1"
 futures                   = { version = "0.3", default-features = false }
 bytes                     = { version = "1", default-features = false }
 http_req                  = { version="^0.9", default-features = false, features = ["rust-tls"]}
+snafu                     = { version = "0.7.3", default-features = false }
 ipfs-api-prelude          = { version = "0.5", path = "../ipfs-api-prelude" }
