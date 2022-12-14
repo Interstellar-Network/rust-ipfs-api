@@ -17,3 +17,9 @@ pub use tokio::main;
 
 #[cfg(feature = "with-hyper")]
 pub use ipfs_api_backend_hyper as ipfs_api;
+
+#[cfg(feature = "with-http_req")]
+pub use tokio::main;
+
+#[cfg(feature = "with-http_req")]
+pub use ipfs_api_backend_http_req as ipfs_api;

@@ -16,15 +16,19 @@ github                    = { repository = "ferristseng/rust-ipfs-api", workflow
 maintenance               = { status = "deprecated" }
 
 [features]
-default                   = ["with-hyper"]
+default                   = ["std","with-hyper"]
+std = []
+sgx = []
 with-hyper-tls            = ["with-hyper", "ipfs-api-backend-hyper/with-hyper-tls"]
 with-hyper-rustls         = ["with-hyper", "ipfs-api-backend-hyper/with-hyper-rustls"]
 with-hyper                = ["ipfs-api-backend-hyper", "ipfs-api-backend-hyper/with-builder"]
 with-actix                = ["ipfs-api-backend-actix", "ipfs-api-backend-actix/with-builder"]
+with-http_req             = ["ipfs-api-backend-http_req", "ipfs-api-backend-http_req/with-builder"]
 
 [dependencies]
 ipfs-api-backend-actix    = { version = "0.6", path = "../ipfs-api-backend-actix", optional = true }
 ipfs-api-backend-hyper    = { version = "0.5", path = "../ipfs-api-backend-hyper", optional = true }
+ipfs-api-backend-http_req = { version = "0.5", path = "../ipfs-api-backend-http_req", optional = true }
 
 [dev-dependencies]
 actix-rt                  = "2.5"

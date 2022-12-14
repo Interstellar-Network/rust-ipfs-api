@@ -181,11 +181,21 @@
 //! ```
 //!
 
+// #![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #[cfg(feature = "with-hyper")]
 pub use ipfs_api_backend_hyper::*;
 
 #[cfg(feature = "with-actix")]
 pub use ipfs_api_backend_actix::*;
 
-#[cfg(not(any(feature = "with-actix", feature = "with-hyper")))]
-compile_error!("Pick exactly one of these features: with-hyper, with-actix");
+#[cfg(feature = "with-http_req")]
+pub use ipfs_api_backend_http_req::*;
+
+#[cfg(not(any(
+    feature = "with-actix",
+    feature = "with-hyper",
+    feature = "with-http_req"
+)))]
+compile_error!("Pick exactly one of these features: with-hyper, with-actix, with-http_req");

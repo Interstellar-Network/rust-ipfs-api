@@ -1,0 +1,27 @@
+[package]
+name                      = "ipfs-api-backend-http_req"
+description               = "http_req implementation of IPFS HTTP API"
+authors                   = ["Nathan Prat <nathan.prat@gmail.com>"]
+edition                   = "2021"
+documentation             = "https://docs.rs/ipfs-api"
+repository                = "https://github.com/ferristseng/rust-ipfs-api"
+keywords                  = ["ipfs"]
+categories                = ["filesystem", "web-programming"]
+version                   = "0.5.0"
+readme                    = "../README.md"
+license                   = "MIT OR Apache-2.0"
+
+[badges]
+github                    = { repository = "ferristseng/rust-ipfs-api", workflow = "Rust" }
+maintenance               = { status = "passively-maintained" }
+
+[features]
+with-builder              = ["ipfs-api-prelude/with-builder"]
+with-send-sync            = ["ipfs-api-prelude/with-send-sync"]
+
+[dependencies]
+async-trait               = "0.1"
+futures                   = { version = "0.3", default-features = false }
+bytes                     = { version = "1", default-features = false }
+http_req                  = { version="^0.9", default-features = false, features = ["rust-tls"]}
+ipfs-api-prelude          = { version = "0.5", path = "../ipfs-api-prelude" }
