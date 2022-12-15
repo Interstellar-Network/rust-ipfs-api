@@ -35,8 +35,8 @@ impl From<http_req::error::Error> for Error {
     }
 }
 
-// impl From<ipfs_api_prelude::Backend::Error> for Error {
-//     fn from(err: ipfs_api_prelude::Backend::Error) -> Self {
-//         Error::Backend { error: err }
-//     }
-// }
+impl From<ipfs_api_prelude::Error> for Error {
+    fn from(err: ipfs_api_prelude::Error) -> Self {
+        Error::IpfsClientError { error: err }
+    }
+}

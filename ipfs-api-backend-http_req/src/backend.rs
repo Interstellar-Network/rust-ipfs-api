@@ -49,7 +49,7 @@ impl TryFromUri for HttpReqBackend {
 impl Backend for HttpReqBackend {
     type HttpRequest = http_req::request::Request<'static>;
 
-    type HttpResponse = http_req::response::Response;
+    type HttpResponse = (http_req::response::Response, Bytes);
 
     type Error = Error;
 
@@ -81,7 +81,7 @@ impl Backend for HttpReqBackend {
     }
 
     fn get_header(res: &Self::HttpResponse, key: HeaderName) -> Option<&HeaderValue> {
-        let header_str = match res.headers().get(&key) {
+        let header_str = match res.0.headers().get(&key) {
             Some(header) => header,
             None => return None,
         };
@@ -115,7 +115,7 @@ impl Backend for HttpReqBackend {
     }
 
     fn response_to_byte_stream(res: Self::HttpResponse) -> BoxStream<Bytes, Self::Error> {
-        Box::new(res.into_body().err_into())
+        Box::new(res.1)
     }
 
     fn request_stream<Res, F>(
@@ -139,7 +139,8 @@ impl Backend for HttpReqBackend {
                     // still needs to be read so an error can be built. This block will
                     // read the entire body stream, then immediately return an error.
                     //
-                    _ => body::to_bytes(res.into_body())
+                    _ => res
+                        .1
                         .boxed()
                         .map(|maybe_body| match maybe_body {
                             Ok(body) => Err(Self::process_error_from_body(body)),
