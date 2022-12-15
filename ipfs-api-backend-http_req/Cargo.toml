@@ -21,6 +21,7 @@ with-send-sync            = ["ipfs-api-prelude/with-send-sync"]
 
 [dependencies]
 async-trait               = "0.1"
+http                      = "0.2"
 futures                   = { version = "0.3", default-features = false }
 bytes                     = { version = "1", default-features = false }
 http_req                  = { version="^0.9", default-features = false, features = ["rust-tls"]}

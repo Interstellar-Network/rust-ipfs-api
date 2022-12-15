@@ -13,73 +13,41 @@ use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use http::{
     header::{HeaderName, HeaderValue},
     uri::Scheme,
-    StatusCode, Uri as HttpUri,
+    StatusCode as HttpStatusCode, Uri as HttpUri,
 };
-use http_req::{request::RequestBuilder, response::StatusCode, tls, uri::Uri as HttpReqUri};
+use http_req::{
+    request::Method as HttpReqMethod, request::RequestBuilder,
+    response::StatusCode as HttpReqStatusCode, tls, uri::Uri as HttpReqUri,
+};
 use ipfs_api_prelude::{ApiRequest, Backend, BoxStream, TryFromUri};
 use multipart::client::multipart;
 
 #[derive(Clone)]
-pub struct HttpReqBackend<'a> {
-    base: Uri<'a>,
+pub struct HttpReqBackend {
+    base: HttpUri,
+    // phantom: PhantomData<&'a T>,
 }
 
-macro_rules! impl_default {
-    ($http_connector:path) => {
-        impl_default!();
-    };
-    ($http_connector:path, $constructor:expr) => {
-        impl Default for HttpReqBackend {
-            /// Creates an `IpfsClient` connected to the endpoint specified in ~/.ipfs/api.
-            /// If not found, tries to connect to `localhost:5001`.
-            ///
-            fn default() -> Self {
-                Self::from_ipfs_config().unwrap_or_else(|| {
-                    Self::from_host_and_port(Scheme::HTTP, "localhost", 5001).unwrap()
-                })
-            }
-        }
-
-        impl TryFromUri for HttpReqBackend {
-            fn build_with_base_uri(base: Uri) -> Self {
-                let client = Builder::default()
-                    .pool_max_idle_per_host(0)
-                    .build($constructor);
-
-                HttpReqBackend { base, client }
-            }
-        }
-    };
+impl Default for HttpReqBackend {
+    /// Creates an `IpfsClient` connected to the endpoint specified in ~/.ipfs/api.
+    /// If not found, tries to connect to `localhost:5001`.
+    ///
+    fn default() -> Self {
+        Self::from_ipfs_config()
+            .unwrap_or_else(|| Self::from_host_and_port(Scheme::HTTP, "localhost", 5001).unwrap())
+    }
 }
 
-// Because the Hyper TLS connector supports both HTTP and HTTPS,
-// if TLS is enabled, always use the TLS connector as default.
-//
-// Otherwise, compile errors will result due to ambiguity:
-//
-//   * "cannot infer type for struct `IpfsClient<_>`"
-//
-#[cfg(not(feature = "with-hyper-tls"))]
-#[cfg(not(feature = "with-hyper-rustls"))]
-impl_default!(HttpConnector);
-
-#[cfg(feature = "with-hyper-tls")]
-impl_default!(hyper_tls::HttpsConnector<HttpConnector>);
-
-#[cfg(feature = "with-hyper-rustls")]
-impl_default!(
-    hyper_rustls::HttpsConnector<HttpConnector>,
-    hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .https_or_http()
-        .enable_http1()
-        .build()
-);
+impl TryFromUri for HttpReqBackend {
+    fn build_with_base_uri(base: HttpUri) -> Self {
+        HttpReqBackend { base }
+    }
+}
 
 #[cfg_attr(feature = "with-send-sync", async_trait)]
 #[cfg_attr(not(feature = "with-send-sync"), async_trait(?Send))]
-impl<'a> Backend for HttpReqBackend<'a> {
-    type HttpRequest = http_req::request::Request<'a>;
+impl Backend for HttpReqBackend {
+    type HttpRequest = http_req::request::Request<'static>;
 
     type HttpResponse = http_req::response::Response;
 
@@ -95,16 +63,16 @@ impl<'a> Backend for HttpReqBackend<'a> {
     {
         // TODO(interstellar) uri!
         // let url: Uri = req.absolute_url(&self.base.to_string())?;
-        let url = Uri::try_from("TODO").unwrap();
+        let url = HttpReqUri::try_from("TODO").unwrap();
 
         // TODO(interstellar) cleanup
         // let builder = http::Request::builder();
         // let builder = builder.method(Req::METHOD).uri(url);
         let builder = RequestBuilder::new(&url);
-        builder.method(Req::METHOD);
+        // builder.method(Req::);
 
         let req = if let Some(form) = form {
-            form.set_body_convert::<&'a [u8], multipart::Body>(builder)
+            form.set_body_convert::<&[u8], multipart::Body>(builder)
         } else {
             builder.body(&[0u8; 0])
         }?;
@@ -112,15 +80,23 @@ impl<'a> Backend for HttpReqBackend<'a> {
         Ok(req)
     }
 
-    fn get_header(res: &Self::HttpResponse, key: &String) -> Option<&String> {
-        res.headers().get(key)
+    fn get_header(res: &Self::HttpResponse, key: HeaderName) -> Option<&HeaderValue> {
+        let header_str = match res.headers().get(&key) {
+            Some(header) => header,
+            None => return None,
+        };
+
+        match HeaderValue::from_str(header_str) {
+            Ok(header_value) => Some(&header_value),
+            _ => None,
+        }
     }
 
     async fn request_raw<Req>(
         &self,
         req: Req,
         form: Option<multipart::Form<'static>>,
-    ) -> Result<(StatusCode, Bytes), Self::Error>
+    ) -> Result<(HttpStatusCode, Bytes), Self::Error>
     where
         Req: ApiRequest,
     {
@@ -130,10 +106,12 @@ impl<'a> Backend for HttpReqBackend<'a> {
         let mut writer = Vec::new();
         let resp = req.send(&mut writer)?;
 
-        let status = resp.status_code();
+        let status_http_req: HttpReqStatusCode = resp.status_code();
         let body = writer.try_into().unwrap();
 
-        Ok((status, body))
+        let status_http = HttpStatusCode::from_u16(status_http_req.try_into().unwrap()).unwrap();
+
+        Ok((status_http, body))
     }
 
     fn response_to_byte_stream(res: Self::HttpResponse) -> BoxStream<Bytes, Self::Error> {
@@ -155,8 +133,8 @@ impl<'a> Backend for HttpReqBackend<'a> {
             .send(&mut writer)
             .err_into()
             .map_ok(move |res| {
-                match res.status() {
-                    StatusCode::OK => process(res).right_stream(),
+                match res.status_code() {
+                    HttpReqStatusCode::OK => process(res).right_stream(),
                     // If the server responded with an error status code, the body
                     // still needs to be read so an error can be built. This block will
                     // read the entire body stream, then immediately return an error.
